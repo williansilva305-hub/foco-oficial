@@ -1,12 +1,50 @@
 import { GoogleGenAI } from "@google/genai";
-import { AnalysisResult } from '../types';
+import { AnalysisResult, Subject } from '../types';
 
 // O modelo é hardcoded para Gemini 2.5 Pro por questões de precisão
 const AI_MODEL = "gemini-2.5-pro";
 const ai = new GoogleGenAI({}); // Assume GEMINI_API_KEY is in environment variables
 
 /**
- * Prompt para formatar e analisar o edital.
+ * Função para gerar um plano de estudos detalhado.
+ * @param subjects As disciplinas extraídas do edital.
+ * @returns Promessa com o plano de estudos formatado em string.
+ */
+export async function generateStudyPlan(subjects: Subject[]): Promise<string> {
+    const systemInstruction = `
+        Você é um planejador de estudos especializado. Sua tarefa é criar um cronograma de estudos realista com base nas disciplinas fornecidas.
+        Devolva um plano de estudos detalhado de 6 semanas em formato Markdown.
+    `;
+    
+    const subjectsList = subjects.map(s => `- ${s.name}: ${s.topics.length} tópicos`).join('\n');
+    
+    const prompt = `
+        Crie um plano de estudos de 6 semanas, dividindo o tempo de forma inteligente para cobrir as seguintes disciplinas. 
+        Seja realista. Use o formato Markdown.
+        ---
+        Disciplinas:
+        ${subjectsList}
+        ---
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: AI_MODEL,
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            config: {
+                systemInstruction: systemInstruction,
+            },
+        });
+        return response.text;
+    } catch (error) {
+        console.error("Erro na chamada da API Gemini para plano de estudos:", error);
+        return "Erro ao gerar plano de estudos. Tente novamente mais tarde.";
+    }
+}
+
+
+/**
+ * Prompt para formatar e analisar o edital (Função original).
  * @param editalText O texto completo do edital.
  * @returns Promessa com o resultado formatado em JSON.
  */
