@@ -6,6 +6,45 @@ const AI_MODEL = "gemini-2.5-pro";
 const ai = new GoogleGenAI({}); // Assume GEMINI_API_KEY is in environment variables
 
 /**
+ * Função para gerar um mapa mental no formato Markdown para o Mermaid.
+ * @param subjects As disciplinas para as quais gerar o mapa.
+ * @returns Promessa com o mapa mental em formato de texto.
+ */
+export async function generateMindMap(subjects: Subject[]): Promise<string> {
+    const systemInstruction = `
+        Você é um gerador de mapas mentais em formato Mermaid. Sua tarefa é criar um mapa mental das principais disciplinas e seus tópicos.
+        Sua resposta deve ser *apenas* o código Mermaid Markdown, começando com 'mindmap' e terminando com 'A's:
+        Por exemplo: mindmap\n\troot((Concurso))\n\t\tA(Disciplina A)\n\t\tB(Disciplina B)
+    `;
+    
+    const subjectsList = subjects.map(s => `- ${s.name}: ${s.topics.slice(0, 3).join(', ')}...`).join('\n');
+    
+    const prompt = `
+        Crie um mapa mental Mermaid formatado com a raíz sendo 'Edital' e os nós principais sendo as Disciplinas.
+        Inclua pelo menos 3 níveis de profundidade (Disciplina -> Tópico Principal -> Subtópico).
+        ---
+        Disciplinas:
+        ${subjectsList}
+        ---
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: AI_MODEL,
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            config: {
+                systemInstruction: systemInstruction,
+            },
+        });
+        return response.text;
+    } catch (error) {
+        console.error("Erro na chamada da API Gemini para mapa mental:", error);
+        return "Erro ao gerar mapa mental. Tente novamente mais tarde.";
+    }
+}
+
+
+/**
  * Função para gerar flashcards detalhados.
  * @param subjects As disciplinas para as quais gerar flashcards.
  * @returns Promessa com os flashcards formatados.
