@@ -6,6 +6,43 @@ const AI_MODEL = "gemini-2.5-pro";
 const ai = new GoogleGenAI({}); // Assume GEMINI_API_KEY is in environment variables
 
 /**
+ * Função para gerar flashcards detalhados.
+ * @param subjects As disciplinas para as quais gerar flashcards.
+ * @returns Promessa com os flashcards formatados.
+ */
+export async function generateFlashcards(subjects: Subject[]): Promise<string> {
+    const systemInstruction = `
+        Você é um criador de flashcards. Sua tarefa é criar 10 flashcards de estudo e revisão para as disciplinas fornecidas.
+        Devolva os flashcards em um formato de lista Markdown claro (Pergunta: X, Resposta: Y).
+    `;
+    
+    const subjectsList = subjects.map(s => `- ${s.name}: ${s.topics.length} tópicos`).join('\n');
+    
+    const prompt = `
+        Crie 10 flashcards (pergunta e resposta) para as disciplinas listadas.
+        ---
+        Disciplinas:
+        ${subjectsList}
+        ---
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: AI_MODEL,
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            config: {
+                systemInstruction: systemInstruction,
+            },
+        });
+        return response.text;
+    } catch (error) {
+        console.error("Erro na chamada da API Gemini para flashcards:", error);
+        return "Erro ao gerar flashcards. Tente novamente mais tarde.";
+    }
+}
+
+
+/**
  * Função para gerar um plano de estudos detalhado.
  * @param subjects As disciplinas extraídas do edital.
  * @returns Promessa com o plano de estudos formatado em string.
