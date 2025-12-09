@@ -106,4 +106,41 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen, se
         </div>
 
         {/* User Profile */}
-        <div
+        <div className="bg-slate-950 border-t border-slate-800 p-4">
+           {user && (
+             <div className="flex items-center gap-3 mb-4 p-3 bg-slate-900 rounded-xl border border-slate-800 hover:border-slate-700 transition-colors cursor-pointer">
+               {user.avatarUrl && !user.avatarUrl.includes('default') ? (
+                 <img src={user.avatarUrl} alt={user.name} className="w-9 h-9 rounded-full border border-slate-600" />
+               ) : (
+                 <div className="w-9 h-9 rounded-full bg-indigo-900/50 flex items-center justify-center border border-indigo-800 shrink-0">
+                   <UserIcon className="w-4 h-4 text-indigo-400" />
+                 </div>
+               )}
+               <div className="overflow-hidden">
+                 <p className="text-sm font-semibold text-slate-200 truncate">{user.name}</p>
+                 <p className="text-xs text-slate-500 truncate">{user.email}</p>
+               </div>
+             </div>
+           )}
+
+           <button 
+             onClick={onLogout}
+             className="w-full flex items-center justify-center gap-2 px-4 py-2 text-slate-500 hover:text-red-400 text-xs font-bold uppercase tracking-wider rounded-lg transition-all hover:bg-slate-900"
+           >
+             <LogOut className="w-3 h-3" />
+             Desconectar
+           </button>
+        </div>
+      </aside>
+
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-950/80 z-30 md:hidden backdrop-blur-sm"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+    </>
+  );
+};
+
+export default Sidebar;
