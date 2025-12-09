@@ -1,6 +1,5 @@
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Configuração para o ambiente do Vercel/Vite, usando o CDN público e correto do pdfjs.
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 export const extractTextFromPDF = async (file: File, onProgress?: (progress: number) => void): Promise<string> => {
