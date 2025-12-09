@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AnalysisResult, ViewMode, User } from './types';
-import { analyzeBankProfile } from './services/aiService'; 
+import { analyzeBankProfile } from './services/aiService'; // CORREÇÃO DE NOME AQUI
 import Sidebar from './components/Sidebar';
 import UploadSection from './components/UploadSection';
 import Dashboard from './components/Dashboard';
@@ -55,7 +55,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }; // <--- ESTE FECHAMENTO ESTAVA FALTANDO!
+  }; // <--- CHAVE DE FECHAMENTO FINAL CORRIGIDA
 
   if (!user) {
     return <LoginScreen onLogin={handleLogin} />;
@@ -90,4 +90,4 @@ const App: React.FC = () => {
         <div className="p-4 md:p-8 flex-1 overflow-x-hidden">
           
           {errorMsg && (
-            <div className="mb-6 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-r shadow-sm flex justify
+            <div className="mb-6 bg-red-100 border-l-4 border
