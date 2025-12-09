@@ -50,6 +50,7 @@ function App() {
     }
   }, []);
 
-  const handleLogin = (u: User) => {
+ const handleLogin = (u: User) => {
     setUser(u);
-    localStorage.setItem('foco_
+    localStorage.setItem('foco_user', JSON.stringify(u)); 
+  };
