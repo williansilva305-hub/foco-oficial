@@ -1,59 +1,69 @@
 import { GoogleGenAI } from "@google/genai";
-import { AnalysisResult, Simulation, QuestionStyle, Flashcard, MindMap, StudyPlan } from "../types";
+import { AnalysisResult } from '../types';
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-const ai = new GoogleGenAI({ apiKey: apiKey });
+// O modelo é hardcoded para Gemini 2.5 Pro por questões de precisão
+const AI_MODEL = "gemini-2.5-pro";
+const ai = new GoogleGenAI({}); // Assume GEMINI_API_KEY is in environment variables
 
-// Limpeza de JSON
-const cleanJson = (text: string) => text.replace(/```json/g, '').replace(/```/g, '').trim();
-const cleanMermaid = (text: string) => text.replace(/```mermaid/g, '').replace(/```/g, '').trim();
-
-export const analyzeBankProfile = async (text: string): Promise<AnalysisResult> => {
-  if (!apiKey) console.warn("API Key faltando");
-  const model = "gemini-2.0-flash"; 
+/**
+ * Prompt para formatar e analisar o edital.
+ * @param editalText O texto completo do edital.
+ * @returns Promessa com o resultado formatado em JSON.
+ */
+export async function analyzeEdital(editalText: string): Promise<AnalysisResult> {
+  const systemInstruction = `
+    Você é um assistente de inteligência artificial de análise de concursos públicos, especializado em extrair informações de editais e formatá-las em um objeto JSON estritamente estruturado para um aplicativo de estudo.
+    Sua resposta deve ser *apenas* o objeto JSON que corresponde à interface AnalysisResult. Não adicione nenhum texto introdutório, explicações ou notas antes ou depois do JSON.
+    O campo 'date' deve ser a data de publicação do edital, formatada em YYYY-MM-DD.
+    A 'difficulty' deve ser um número de 1 (Fácil) a 5 (Extremamente difícil).
+    As 'subjects' devem conter uma lista detalhada de disciplinas e tópicos de estudo extraídos do edital.
+    A 'timeline' deve ser um cronograma extraído com pelo menos 5 eventos importantes.
+    A 'summary' deve ser uma visão geral de alto nível.
+    A 'requiredKnowledge' deve ser baseada nos requisitos do cargo (nível, experiência, etc.).
+    O campo 'pdfDownloadLink' deve ser uma string de URL fictícia se não for encontrado: 'https://exemplo.com/edital_download'.
+  `;
 
   const prompt = `
-    Analise este texto de concurso: "${text.substring(0, 50000)}"
-    Retorne JSON estrito:
-    {
-      "profile": {
-        "name": "Banca", "styleDescription": "Estilo", "literalityRate": 0, "jurisprudenceRate": 0, "trickeryRate": 0, "difficultyLevel": 0, "keywords": []
-      },
-      "topicsStats": [{ "name": "T", "relevance": 0, "probability": "Alta", "frequency": 0, "trend": "Estável", "probabilityNextExam": 0, "importanceLevel": "Alta" }],
-      "heatmap": [{ "topic": "T", "frequency": "Alta", "probability": 0, "color": "#f00", "lastAppearance": "2024", "trend": "Crescente" }],
-      "topThemes": [], "abandonedThemes": [], "recommendations": [], "predictionReport": "Previsão", "topics": []
-    }
+    Analise o seguinte texto de edital e devolva a análise completa no formato JSON estritamente definido pela interface AnalysisResult. 
+    ---
+    TEXTO DO EDITAL:
+    ${editalText.substring(0, 30000)}
+    ---
   `;
 
   try {
-    const res = await ai.models.generateContent({ model, contents: prompt, config: { responseMimeType: 'application/json' } });
-    const data = JSON.parse(cleanJson(res.text || '{}'));
-    data.topics = data.topicsStats ? data.topicsStats.map((t: any) => ({ name: t.name, relevance: t.relevance, probability: t.probability })) : [];
-    data.topThemes = data.topicsStats ? data.topicsStats.slice(0, 5) : [];
-    return data;
-  } catch (e) { console.error(e); throw e; }
-};
+    const response = await ai.models.generateContent({
+      model: AI_MODEL,
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        systemInstruction: systemInstruction,
+        responseMimeType: "application/json",
+      },
+    });
 
-export const generateSimulation = async (profile: string, topics: string[], style: QuestionStyle, count: number = 5): Promise<Simulation> => {
-  const prompt = `Crie simulado ${count} questões (${style}) banca ${profile}, tópicos ${topics}. JSON: {"title": "Simulado", "questions": [{"id": 1, "statement": "...", "options": ["A"], "correctIndex": 0, "explanation": "...", "topic": "..."}]}`;
-  const res = await ai.models.generateContent({ model: "gemini-2.0-flash", contents: prompt, config: { responseMimeType: 'application/json' } });
-  return { ...JSON.parse(cleanJson(res.text || '{}')), id: Date.now().toString(), createdAt: new Date().toISOString(), style };
-};
+    const jsonText = response.text.trim();
+    if (jsonText.startsWith('```') && jsonText.endsWith('```')) {
+        // Remove markdown formatting if the AI insists on including it
+        const cleanedText = jsonText.substring(jsonText.indexOf('{'), jsonText.lastIndexOf('}') + 1);
+        return JSON.parse(cleanedText) as AnalysisResult;
+    }
 
-export const generateFlashcards = async (topics: string[], count: number = 5): Promise<Flashcard[]> => {
-  const prompt = `Crie ${count} flashcards sobre ${topics}. JSON Array: [{"front": "P", "back": "R", "topic": "T"}]`;
-  const res = await ai.models.generateContent({ model: "gemini-2.0-flash", contents: prompt, config: { responseMimeType: 'application/json' } });
-  return JSON.parse(cleanJson(res.text || '[]')).map((c: any, i: number) => ({ ...c, id: ''+i, status: 'new', nextReview: new Date().toISOString() }));
-};
+    return JSON.parse(jsonText) as AnalysisResult;
 
-export const generateMindMap = async (topic: string): Promise<MindMap> => {
-  const prompt = `Diagrama Mermaid graph TD sobre ${topic}. APENAS CÓDIGO.`;
-  const res = await ai.models.generateContent({ model: "gemini-2.0-flash", contents: prompt });
-  return { id: Date.now().toString(), title: topic, mermaidContent: cleanMermaid(res.text || ''), createdAt: new Date().toISOString() };
-};
-
-export const generateStudyPlan = async (profile: string, weaks: string[]): Promise<StudyPlan> => {
-  const prompt = `Plano 7 dias banca ${profile}, foco ${weaks}. JSON: {"goal": "...", "weeklySchedule": [{"day": "...", "focus": "...", "description": "...", "durationMinutes": 90}]}`;
-  const res = await ai.models.generateContent({ model: "gemini-2.0-flash", contents: prompt, config: { responseMimeType: 'application/json' } });
-  return { ...JSON.parse(cleanJson(res.text || '{}')), id: Date.now().toString() };
-};
+  } catch (error) {
+    console.error("Erro na chamada da API Gemini:", error);
+    // Retornar um resultado mockado em caso de erro para não quebrar a UI
+    return {
+      title: "Análise Mockada (Erro API)",
+      date: "2025-01-01",
+      difficulty: 3,
+      summary: "Falha ao conectar na API Gemini. Verifique sua chave de API.",
+      timeline: [],
+      requiredKnowledge: "Verifique a configuração do seu .env.local.",
+      pdfDownloadLink: "https://erro.com",
+      subjects: [
+        { name: "Erro", topics: ["Não foi possível gerar análise. Verifique o console."] }
+      ]
+    } as AnalysisResult;
+  }
+}
