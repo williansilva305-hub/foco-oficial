@@ -6,7 +6,44 @@ const AI_MODEL = "gemini-2.5-pro";
 const ai = new GoogleGenAI({}); // Assume GEMINI_API_KEY is in environment variables
 
 /**
- * Função para gerar um mapa mental no formato Markdown para o Mermaid.
+ * Função para gerar um simulado (perguntas e respostas).
+ * @param subjects As disciplinas para as quais gerar o simulado.
+ * @returns Promessa com o simulado formatado em string.
+ */
+export async function generateSimulation(subjects: Subject[]): Promise<string> {
+    const systemInstruction = `
+        Você é um criador de simulados de concurso público. Gere 5 questões de múltipla escolha (A, B, C, D, E) com gabarito.
+        Sua resposta deve ser estritamente em formato Markdown.
+    `;
+    
+    const subjectsList = subjects.map(s => `- ${s.name}`).join('\n');
+    
+    const prompt = `
+        Gere 5 questões de múltipla escolha para as disciplinas listadas, com o gabarito no final.
+        ---
+        Disciplinas:
+        ${subjectsList}
+        ---
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: AI_MODEL,
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            config: {
+                systemInstruction: systemInstruction,
+            },
+        });
+        return response.text;
+    } catch (error) {
+        console.error("Erro na chamada da API Gemini para simulado:", error);
+        return "Erro ao gerar simulado. Tente novamente mais tarde.";
+    }
+}
+
+
+/**
+ * Função para gerar mapa mental no formato Markdown para o Mermaid.
  * @param subjects As disciplinas para as quais gerar o mapa.
  * @returns Promessa com o mapa mental em formato de texto.
  */
