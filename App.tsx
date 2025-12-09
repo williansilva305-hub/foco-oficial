@@ -50,7 +50,110 @@ function App() {
     }
   }, []);
 
- const handleLogin = (u: User) => {
+  const handleLogin = (u: User) => {
     setUser(u);
     localStorage.setItem('foco_user', JSON.stringify(u)); 
   };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('foco_user');
+    setAnalysisData(null);
+    localStorage.removeItem('lastAnalysis');
+    setCurrentView('dashboard');
+  };
+
+  const handleFileUpload = async (file: File) => {
+    setIsAnalyzing(true);
+    setUploadProgress(10);
+    
+    try {
+      // 1. Extract Text
+      setUploadProgress(30);
+      const text = await extractTextFromPDF(file, (p) => setUploadProgress(30 + (p * 0.2)));
+      
+      // 2. Analyze with AI
+      setUploadProgress(60);
+      // Note: In a real app, we would send 'text' to the AI. 
+      // For this demo, we might use a mock or the real key if configured.
+      const result = await analyzeEdital(text);
+      
+      setAnalysisData(result);
+      localStorage.setItem('lastAnalysis', JSON.stringify(result));
+      setUploadProgress(100);
+      setCurrentView('dashboard');
+      
+    } catch (error) {
+      console.error(error);
+      alert("Erro na análise. Verifique sua chave API ou o arquivo.");
+    } finally {
+      setIsAnalyzing(false);
+      setUploadProgress(0);
+    }
+  };
+
+  if (!user) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
+  return (
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+      <Sidebar 
+        currentView={currentView}
+        onChangeView={setCurrentView}
+        isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen}
+        hasAnalysis={!!analysisData}
+        user={user}
+        onLogout={handleLogout}
+      />
+
+      <main className={`
+        flex-1 transition-all duration-300 ease-in-out p-4 md:p-8
+        ${isSidebarOpen ? 'md:ml-72' : 'ml-0'}
+      `}>
+        <div className="max-w-7xl mx-auto pt-12 md:pt-0">
+          
+          {currentView === 'dashboard' && (
+            <Dashboard 
+              data={analysisData} 
+              onNewAnalysis={() => setCurrentView('upload')}
+              userName={user.name}
+            />
+          )}
+
+          {currentView === 'upload' && (
+            <UploadSection 
+              onUpload={handleFileUpload} 
+              isAnalyzing={isAnalyzing}
+              progress={uploadProgress}
+            />
+          )}
+
+          {currentView === 'analysis' && analysisData && (
+            <AnalysisReport data={analysisData} />
+          )}
+
+          {currentView === 'study_plan' && analysisData && (
+            <StudyPlanner subjects={analysisData.subjects} />
+          )}
+
+          {currentView === 'flashcards' && analysisData && (
+            <FlashcardsView subjects={analysisData.subjects} />
+          )}
+
+          {currentView === 'mindmap' && analysisData && (
+            <MindMapView subjects={analysisData.subjects} />
+          )}
+
+          {currentView.startsWith('simulation') && analysisData && (
+            <SimulationMode subjects={analysisData.subjects} />
+          )}
+
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default App;
